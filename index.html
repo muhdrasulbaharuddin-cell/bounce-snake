@@ -1,1 +1,1948 @@
-<!DOCTYPE html><html><body><h1>Test</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Bounce Snake 🐍</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+  }
+  body {
+    margin: 0; padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Fredoka One', cursive;
+    background: linear-gradient(160deg, #ffe0f0 0%, #fff4c2 50%, #d0f0ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #gameWrapper {
+    position: relative;
+    width: 400px;
+    height: 630px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 400px;
+    height: 630px;
+  }
+
+  /* REVIVE OFFER - sits inside wrapper */
+  #reviveOffer {
+    display: none;
+    position: absolute;
+    top: 0; left: 0;
+    width: 400px;
+    height: 630px;
+    background: rgba(10,10,30,0.88);
+    z-index: 210;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  #reviveOffer.show { display: flex; }
+  .revive-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 38px;
+    color: #fff;
+    text-shadow: 0 0 20px #ff4488;
+    animation: revivePulse 0.6s ease-out;
+  }
+  @keyframes revivePulse {
+    0%  { transform: scale(0.4); opacity: 0; }
+    70% { transform: scale(1.15); }
+    100%{ transform: scale(1);   opacity: 1; }
+  }
+  .revive-sub {
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    color: #ffbbdd;
+  }
+  .revive-score {
+    font-family: 'Fredoka One', cursive;
+    font-size: 20px;
+    color: #FFD700;
+    text-shadow: 0 0 10px #ffaa00;
+    margin-bottom: 4px;
+  }
+  .revive-btn {
+    background: linear-gradient(135deg, #00cc66, #00aaff);
+    color: white;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 15px;
+    padding: 14px 28px;
+    cursor: pointer;
+    border-radius: 30px;
+    box-shadow: 0 6px 0 #007744, 0 0 20px rgba(0,200,100,0.5);
+    margin-top: 6px;
+  }
+  .revive-timer-wrap {
+    width: 200px;
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .revive-timer-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #00cc66, #ffcc00);
+    border-radius: 4px;
+    transition: width 0.1s linear;
+  }
+  .revive-skip {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    margin-top: 2px;
+    text-decoration: underline;
+  }
+  .revive-skip:hover { color: rgba(255,255,255,0.7); }
+  /* REVIVE flash effect on canvas */
+  #c.reviving {
+    animation: reviveFlash 0.6s ease-out;
+  }
+  @keyframes reviveFlash {
+    0%  { filter: brightness(3) saturate(0); }
+    100%{ filter: brightness(1) saturate(1); }
+  }
+
+  #interstitial {
+    display: none;
+    position: absolute;
+    top: 0; left: 0;
+    width: 400px;
+    height: 630px;
+    background: rgba(255,220,240,0.96);
+    z-index: 200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  #interstitial.show { display: flex; }
+  .ad-card {
+    width: 80%;
+    border: 4px solid #ff85c0;
+    border-radius: 24px;
+    padding: 22px 18px;
+    text-align: center;
+    background: white;
+    box-shadow: 0 8px 0 #ffb3d9;
+  }
+  .ad-card-icon { font-size: 50px; margin-bottom: 10px; }
+  .ad-card-title { font-family: 'Fredoka One', cursive; font-size: 18px; color: #ff5fa0; margin-bottom: 8px; }
+  .ad-card-sub { font-size: 10px; color: #aa77aa; line-height: 2; margin-bottom: 14px; font-family: 'Nunito', sans-serif; font-weight: 700; }
+  #skipWrap { font-size: 9px; color: #bbaacc; font-family: 'Nunito', sans-serif; }
+  #skipWrap span { color: #ff88bb; }
+  #skipNow {
+    display: none;
+    background: linear-gradient(135deg, #ff85c0, #ffaa55);
+    color: white;
+    border: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 12px;
+    padding: 8px 22px;
+    cursor: pointer;
+    border-radius: 20px;
+    margin-top: 10px;
+    box-shadow: 0 4px 0 #cc5588;
+  }
+</style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <canvas id="c" width="400" height="630"></canvas>
+
+  <!-- REVIVE OFFER -->
+  <div id="reviveOffer">
+    <div class="revive-title">😵 Oh no!</div>
+    <div class="revive-sub">Your buddy got stuck! 🦋</div>
+    <div class="revive-score" id="reviveScore"></div>
+    <div id="revivesLeft" style="font-family:'Nunito',sans-serif;font-size:13px;color:#ffbbdd;margin-bottom:4px;"></div>
+    <button class="revive-btn" id="watchAdBtn">▶ Watch Ad to Continue!</button>
+    <div class="revive-timer-wrap">
+      <div class="revive-timer-bar" id="reviveBar"></div>
+    </div>
+    <div class="revive-skip" id="reviveSkipBtn">✕ No thanks, end game</div>
+  </div>
+
+  <!-- INTERSTITIAL AD -->
+  <div id="interstitial">
+    <div style="font-size:8px;color:#cc88aa;align-self:flex-end;margin-right:16px;font-family:'Nunito',sans-serif;">Advertisement</div>
+    <div class="ad-card">
+      <div class="ad-card-icon">🦄</div>
+      <div class="ad-card-title">UNICORN DASH!</div>
+      <div class="ad-card-sub">Run, jump & collect stars! 🌟<br>Loved by 5 million kids! 🎉<br>⭐⭐⭐⭐⭐</div>
+      <div id="skipWrap">Skip in <span id="cd">5</span>s ⏳</div>
+      <button id="skipNow" onclick="closeAd()">▶ REVIVE & KEEP PLAYING! 🐍</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Fixed canvas size matching original
+canvas.width  = 400;
+canvas.height = 630;
+const W = canvas.width;
+const H = canvas.height;
+
+// ── SPEED CONSTANTS ───────────────────────────────────────────
+const MIN_SPEED   = 1.0;
+const MAX_SPEED   = 9.0;
+const SPEED_SCALE = 0.045;
+let state = 'start'; // start | playing | dead | ad
+let score = 0, highScore = 0, deathCount = 0;
+
+// ── BIRD ───────────────────────────────────────────────────────
+const BIRD_SPEED = 2.0;
+const bird = {
+  x: W / 2,
+  y: H / 2,
+  r: 16,
+  angle: 0,
+  vx: BIRD_SPEED,   // horizontal velocity (tap flips this)
+  vy: BIRD_SPEED,   // vertical velocity (bounces off top/bottom)
+  trail: [],
+  stuckTimer: 0,
+  reset() {
+    this.x = W / 2;
+    this.y = H / 2;
+    this.vx = BIRD_SPEED;
+    this.vy = BIRD_SPEED;
+    this.trail = [];
+    this.stuckTimer = 0;
+  },
+  get dir() { return this.vx > 0 ? 1 : -1; }
+};
+
+// ── WALLS ──────────────────────────────────────────────────────
+// Walls come from top or bottom. Each has a gap the bird must pass through.
+// Some walls slide left/right.
+const WALL_H = 18;
+const GAP_W = 110;
+const WALL_SPEED = 2.2;
+let walls = [];
+let wallTimer = 0;
+const WALL_INTERVAL = 95; // frames between spawns
+
+function spawnWall() {
+  const fromTop = Math.random() < 0.5;
+  const y = fromTop ? -WALL_H : H + WALL_H;
+  const vy = fromTop ? WALL_SPEED : -WALL_SPEED;
+
+  // gap center X
+  const minGapX = GAP_W / 2 + 10;
+  const maxGapX = W - GAP_W / 2 - 10;
+  const gapX = Math.random() * (maxGapX - minGapX) + minGapX;
+
+  // moving wall?
+  const moves = score > 3 && Math.random() < 0.45;
+  const moveSpeed = (Math.random() * 1.2 + 0.4) * (Math.random() < 0.5 ? 1 : -1);
+
+  walls.push({ y, vy, gapX, moves, moveSpeed, passed: false, alpha: 1, colorIdx: (wallColorIdx++) % WALL_COLORS.length });
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────
+let particles = [];
+function burst(x, y, color) {
+  const colors = ['#ffb3d9','#ffd6a5','#ffffb3','#b3ffcc','#b3d9ff','#ffaaff'];
+  for (let i = 0; i < 14; i++) {
+    const a = (Math.PI * 2 / 14) * i + Math.random() * 0.3;
+    const spd = Math.random() * 4 + 1;
+    particles.push({ x, y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd,
+      life: 1, color: colors[Math.floor(Math.random()*colors.length)], size: Math.random()*5+3 });
+  }
+}
+
+// ── SKY DECORATIONS ───────────────────────────────────────────
+// Three cloud layers: far (slow, small, faint), mid, near (fast, large, bright)
+const cloudLayers = [
+  // Far layer
+  [ {x:30,  y:80,  s:0.55, sp:0.12},
+    {x:170, y:55,  s:0.5,  sp:0.10},
+    {x:310, y:95,  s:0.52, sp:0.13} ],
+  // Mid layer
+  [ {x:80,  y:130, s:0.75, sp:0.22},
+    {x:240, y:110, s:0.78, sp:0.20},
+    {x:370, y:145, s:0.70, sp:0.18} ],
+  // Near layer
+  [ {x:50,  y:200, s:1.05, sp:0.38},
+    {x:200, y:185, s:1.1,  sp:0.35},
+    {x:350, y:210, s:0.95, sp:0.40} ],
+];
+const cloudAlphas = [0.40, 0.62, 0.88];
+
+// Tiny birds flying across the sky
+const skyBirds = Array.from({length: 5}, (_, i) => ({
+  x: Math.random() * W, y: 60 + Math.random() * 120,
+  speed: 0.4 + Math.random() * 0.5, wing: 0, wDir: 1
+}));
+
+// Floating sparkles
+const sparkles = Array.from({length: 16}, () => ({
+  x: Math.random() * W, y: 40 + Math.random() * (H - 120),
+  tw: Math.random() * Math.PI * 2, r: Math.random() * 5 + 3
+}));
+
+let sunAngle = 0;
+
+function drawCloud(x, y, scale, alpha) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#cce8ff';
+  ctx.shadowBlur = 12;
+  const b = 40 * scale;
+  // Main puffs
+  ctx.beginPath(); ctx.arc(x,        y,        b * 0.60, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + b*0.7, y - b*0.15, b * 0.48, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x - b*0.6, y - b*0.05, b * 0.44, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + b*0.35,y - b*0.42, b * 0.40, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x - b*0.2, y - b*0.38, b * 0.36, 0, Math.PI*2); ctx.fill();
+  // Flat bottom
+  ctx.fillStyle = '#f0f8ff';
+  ctx.fillRect(x - b*1.1, y, b*2.2, b*0.5);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+function drawBg() {
+  // ── Deep sky gradient ───────────────────────────────────────
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,    '#4fc3f7');
+  sky.addColorStop(0.28, '#81d4fa');
+  sky.addColorStop(0.55, '#b3e5fc');
+  sky.addColorStop(0.80, '#c8f5d0');
+  sky.addColorStop(1,    '#dff9e8');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Rainbow — small & faint, tucked top-right corner ────────
+  const rainCols = [
+    'rgba(255,80,80,0.10)',
+    'rgba(255,165,0,0.10)',
+    'rgba(255,230,0,0.10)',
+    'rgba(100,210,80,0.10)',
+    'rgba(30,150,255,0.10)',
+    'rgba(160,80,220,0.09)',
+  ];
+  for (let i = 0; i < rainCols.length; i++) {
+    ctx.beginPath();
+    ctx.arc(W + 20, H * 0.12, 110 - i * 10, Math.PI, 2 * Math.PI);
+    ctx.strokeStyle = rainCols[i];
+    ctx.lineWidth = 9;
+    ctx.stroke();
+  }
+
+  // ── Sun ─────────────────────────────────────────────────────
+  sunAngle += 0.007;
+  const sx = 52, sy = 62;
+  // Outer soft halo
+  const halo = ctx.createRadialGradient(sx, sy, 18, sx, sy, 58);
+  halo.addColorStop(0,   'rgba(255,240,100,0.55)');
+  halo.addColorStop(0.6, 'rgba(255,210,50,0.18)');
+  halo.addColorStop(1,   'rgba(255,200,0,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(sx, sy, 58, 0, Math.PI*2); ctx.fill();
+  // Rays
+  for (let i = 0; i < 12; i++) {
+    const a = (Math.PI*2/12)*i + sunAngle;
+    const r1 = 28, r2 = 42 + Math.sin(sunAngle*3 + i)*4;
+    ctx.beginPath();
+    ctx.moveTo(sx + Math.cos(a)*r1, sy + Math.sin(a)*r1);
+    ctx.lineTo(sx + Math.cos(a)*r2, sy + Math.sin(a)*r2);
+    ctx.strokeStyle = 'rgba(255,220,60,0.75)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+  // Sun disc
+  const disc = ctx.createRadialGradient(sx-5, sy-5, 3, sx, sy, 22);
+  disc.addColorStop(0, '#fffde7');
+  disc.addColorStop(0.5, '#FFD700');
+  disc.addColorStop(1, '#FFA000');
+  ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI*2);
+  ctx.fillStyle = disc; ctx.fill();
+  // Sun face
+  ctx.fillStyle = '#b8860b';
+  ctx.beginPath(); ctx.arc(sx-7, sy-4, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx+7, sy-4, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx, sy+4, 7, 0.1*Math.PI, 0.9*Math.PI); ctx.strokeStyle='#b8860b'; ctx.lineWidth=2; ctx.stroke();
+
+  // ── Far clouds ──────────────────────────────────────────────
+  cloudLayers[0].forEach(c => {
+    if (state==='playing') { c.x -= c.sp; if (c.x < -120) c.x = W + 80; }
+    drawCloud(c.x, c.y, c.s, cloudAlphas[0]);
+  });
+
+  // ── Mid clouds ──────────────────────────────────────────────
+  cloudLayers[1].forEach(c => {
+    if (state==='playing') { c.x -= c.sp; if (c.x < -150) c.x = W + 100; }
+    drawCloud(c.x, c.y, c.s, cloudAlphas[1]);
+  });
+
+  // ── Tiny flying birds ────────────────────────────────────────
+  skyBirds.forEach(b => {
+    if (state === 'playing') {
+      b.x += b.speed;
+      if (b.x > W + 20) b.x = -20;
+    }
+    b.wing += 0.18 * b.wDir;
+    if (Math.abs(b.wing) > 0.45) b.wDir *= -1;
+    ctx.strokeStyle = 'rgba(60,100,160,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    // Two curved wing arcs
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.quadraticCurveTo(b.x - 7, b.y - 6 + b.wing * 10, b.x - 13, b.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.quadraticCurveTo(b.x + 7, b.y - 6 + b.wing * 10, b.x + 13, b.y);
+    ctx.stroke();
+  });
+
+  // ── Near (foreground) clouds ────────────────────────────────
+  cloudLayers[2].forEach(c => {
+    if (state==='playing') { c.x -= c.sp; if (c.x < -180) c.x = W + 120; }
+    drawCloud(c.x, c.y, c.s, cloudAlphas[2]);
+  });
+
+  // ── Sparkles ────────────────────────────────────────────────
+  sparkles.forEach(s => {
+    s.tw += 0.04;
+    const pulse = 0.3 + 0.4 * Math.sin(s.tw);
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#fff9c4';
+    // 4-point star
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.tw * 0.5);
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const a = (Math.PI/2)*i, b2 = (Math.PI/2)*i + Math.PI/4;
+      ctx.lineTo(Math.cos(a)*s.r, Math.sin(a)*s.r);
+      ctx.lineTo(Math.cos(b2)*s.r*0.4, Math.sin(b2)*s.r*0.4);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  });
+
+  // ── Ground — simple quiet strip ─────────────────────────────
+  const gGrad = ctx.createLinearGradient(0, H - 28, 0, H);
+  gGrad.addColorStop(0, '#a8e06a');
+  gGrad.addColorStop(1, '#7bbf44');
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(0, H - 28, W, 28);
+  // Single soft highlight line at top of ground
+  ctx.strokeStyle = 'rgba(200,255,150,0.4)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, H - 28); ctx.lineTo(W, H - 28);
+  ctx.stroke();
+}
+
+// ── INPUT ─────────────────────────────────────────────────────
+let target = { x: W / 2, y: H / 2, active: false };
+
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top)  * scaleY
+  };
+}
+
+function startOrSetTarget(pos) {
+  if (state === 'ad') return;
+  if (state === 'start' || state === 'dead') { startGame(); return; }
+  if (state === 'playing') {
+    target.x = pos.x;
+    target.y = pos.y;
+    target.active = true;
+  }
+}
+
+canvas.addEventListener('mousedown', e => startOrSetTarget(getCanvasPos(e)));
+canvas.addEventListener('mousemove',  e => { if (state === 'playing' && e.buttons > 0) { target.x = getCanvasPos(e).x; target.y = getCanvasPos(e).y; target.active = true; } });
+canvas.addEventListener('touchstart', e => { e.preventDefault(); const t = e.touches[0]; startOrSetTarget(getCanvasPos(t)); }, { passive: false });
+canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (state === 'playing') { const t = e.touches[0]; target.x = getCanvasPos(t).x; target.y = getCanvasPos(t).y; target.active = true; } }, { passive: false });
+
+// ── GAME FLOW ──────────────────────────────────────────────────
+function startGame() {
+  bird.reset();
+  walls = [];
+  particles = [];
+  score = 0;
+  displayScore = 0;
+  reviveUsed   = 0;   // counts revives used (max 5)
+  invincible   = 0;
+  scoreAnims = [];
+  plusAnims  = [];
+  ripples    = [];
+  scorePop   = 0;
+  badgeGlow  = 0;
+  butterflyGlow = 0;
+  milestoneTimer = 0;
+  milestoneFlash = '';
+  wallTimer = 0;
+  target.x = W / 2;
+  target.y = H / 2;
+  target.active = false;
+  state = 'playing';
+  spawnWall();
+}
+
+let reviveUsed    = 0;       // counts revives used (max 5)
+let invincible    = 0;       // frames of post-revive invincibility
+let reviveCountdown = null;  // interval for the 5s offer timer
+
+function die() {
+  if (state !== 'playing') return;
+  if (score > highScore) highScore = score;
+  burst(bird.x, bird.y, '#ffb3d9');
+  burst(bird.x, bird.y, '#ffffb3');
+
+  // Offer revive if not already used this run
+  if (reviveUsed < 5) {
+    state = 'revive';
+    showReviveOffer();
+  } else {
+    state = 'dead';
+    deathCount++;
+    if (deathCount % 3 === 0) setTimeout(showAd, 700);
+  }
+}
+
+// ── REVIVE OFFER ──────────────────────────────────────────────
+function showReviveOffer() {
+  const el = document.getElementById('reviveOffer');
+  document.getElementById('reviveScore').textContent = '⭐ Score: ' + score;
+  document.getElementById('revivesLeft').textContent = '🦋 Revives left: ' + (5 - reviveUsed) + ' / 5';
+  el.classList.add('show');
+
+  let timeLeft = 1.0; // fraction 1→0 over 5 seconds
+  const bar = document.getElementById('reviveBar');
+  bar.style.width = '100%';
+
+  reviveCountdown = setInterval(() => {
+    timeLeft -= 0.02; // ~50fps ticks over 5s
+    bar.style.width = Math.max(0, timeLeft * 100) + '%';
+    if (timeLeft <= 0) {
+      clearInterval(reviveCountdown);
+      hideReviveOffer();
+      state = 'dead';
+      deathCount++;
+      if (deathCount % 3 === 0) setTimeout(showAd, 400);
+    }
+  }, 100);
+}
+
+function hideReviveOffer() {
+  clearInterval(reviveCountdown);
+  document.getElementById('reviveOffer').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMOB REAL ADS
+// Replace the IDs below with YOUR real AdMob IDs from admob.google.com
+// ═══════════════════════════════════════════════════════════════
+const ADMOB_CONFIG = {
+  // ↓↓ REPLACE THESE WITH YOUR REAL IDs ↓↓
+  publisherId:    'ca-pub-XXXXXXXXXXXXXXXX',   // your AdMob publisher ID
+  rewardedId:     'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY',  // Rewarded ad unit
+  interstitialId: 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ', // Interstitial ad unit
+  bannerId:       'ca-app-pub-XXXXXXXXXXXXXXXX/WWWWWWWWWW', // Banner ad unit
+
+  // Set to TRUE once you have real IDs — FALSE uses test/simulated ads
+  useRealAds: false,
+};
+
+// ── AdMob Web SDK loader ──────────────────────────────────────
+// AdMob rewarded ads on web use the "Ad Placement" API via window.adsbygoogle
+// For PWA/WebView: real rewarded ads go through the Android SDK (AdManager.cs)
+// For web testing: we use the simulation below
+
+let _rewardCallback  = null;   // called when user earns reward
+let _closeCallback   = null;   // called when ad closes (with or without reward)
+let cdInterval;
+
+function initAds() {
+  if (!ADMOB_CONFIG.useRealAds) {
+    console.log('[Ads] Running in simulation mode. Set useRealAds: true + real IDs for production.');
+    return;
+  }
+
+  // Load AdSense/AdMob script
+  const script = document.createElement('script');
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADMOB_CONFIG.publisherId}`;
+  script.async = true;
+  script.crossOrigin = 'anonymous';
+  document.head.appendChild(script);
+  script.onload = () => {
+    console.log('[Ads] AdMob SDK loaded');
+    loadBannerAd();
+  };
+}
+
+// ── Banner Ad ─────────────────────────────────────────────────
+function loadBannerAd() {
+  // Banner UI removed — use AdMob native banner in Android app instead
+}
+
+// ── Rewarded Ad (the REVIVE button) ──────────────────────────
+function showRewardedAd(onRewarded, onClosed) {
+  _rewardCallback = onRewarded;
+  _closeCallback  = onClosed;
+
+  if (!ADMOB_CONFIG.useRealAds) {
+    // ── SIMULATION (remove when useRealAds = true) ────────────
+    simulateRewardedAd();
+    return;
+  }
+
+  // ── REAL AdMob Rewarded Ad via adsbygoogle ─────────────────
+  // Note: Rewarded ads on web require the AdMob Web Interstitial API
+  // For Android WebView, the native AdManager.cs handles this instead
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({
+      google_ad_client:   ADMOB_CONFIG.publisherId,
+      google_ad_slot:     ADMOB_CONFIG.rewardedId.split('/')[1],
+      google_ad_format:   'rewarded',
+      enable_page_level_ads: true,
+      ad_callback: (event) => {
+        if (event.type === 'reward') {
+          console.log('[Ads] Reward granted!');
+          _rewardCallback?.();
+          _rewardCallback = null;
+        }
+        if (event.type === 'close') {
+          _closeCallback?.();
+          _closeCallback = null;
+        }
+      }
+    });
+  } catch(e) {
+    console.warn('[Ads] Rewarded ad failed, falling back to simulation:', e);
+    simulateRewardedAd();
+  }
+}
+
+// ── Interstitial Ad (every 3 deaths) ─────────────────────────
+function showInterstitialAd(onClosed) {
+  if (!ADMOB_CONFIG.useRealAds) {
+    simulateInterstitialAd(onClosed);
+    return;
+  }
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({
+      google_ad_client: ADMOB_CONFIG.publisherId,
+      google_ad_slot:   ADMOB_CONFIG.interstitialId.split('/')[1],
+      google_ad_format: 'interstitial',
+      ad_callback: (event) => {
+        if (event.type === 'close') onClosed?.();
+      }
+    });
+  } catch(e) {
+    console.warn('[Ads] Interstitial failed:', e);
+    onClosed?.();
+  }
+}
+
+// ── Simulation (safe fake ads for testing) ────────────────────
+function simulateRewardedAd() {
+  state = 'ad';
+  document.getElementById('interstitial').classList.add('show');
+  document.getElementById('skipNow').style.display = 'none';
+  document.getElementById('skipNow').textContent = '▶ REVIVE & KEEP PLAYING! 🐍';
+  document.getElementById('skipNow').onclick = () => {
+    clearInterval(cdInterval);
+    document.getElementById('interstitial').classList.remove('show');
+    resetSkipWrap();
+    _rewardCallback?.();   // ← reward granted here
+    _rewardCallback = null;
+    _closeCallback  = null;
+  };
+
+  let t = 5;
+  document.getElementById('skipWrap').innerHTML = 'Skip in <span id="cd">' + t + '</span>s ⏳';
+  cdInterval = setInterval(() => {
+    t--;
+    const el = document.getElementById('cd');
+    if (el) el.textContent = t;
+    if (t <= 0) {
+      clearInterval(cdInterval);
+      document.getElementById('skipWrap').textContent = 'Ad complete! ✅';
+      document.getElementById('skipNow').style.display = 'inline-block';
+    }
+  }, 1000);
+}
+
+function simulateInterstitialAd(onClosed) {
+  if (state !== 'dead') return;
+  state = 'ad';
+  document.getElementById('interstitial').classList.add('show');
+  document.getElementById('skipNow').textContent = 'CONTINUE ▶';
+  document.getElementById('skipNow').style.display = 'none';
+  document.getElementById('skipNow').onclick = () => {
+    clearInterval(cdInterval);
+    document.getElementById('interstitial').classList.remove('show');
+    resetSkipWrap();
+    state = 'dead';
+    onClosed?.();
+  };
+
+  let t = 5;
+  document.getElementById('skipWrap').innerHTML = 'Skip in <span id="cd">' + t + '</span>s ⏳';
+  cdInterval = setInterval(() => {
+    t--;
+    const el = document.getElementById('cd');
+    if (el) el.textContent = t;
+    if (t <= 0) {
+      clearInterval(cdInterval);
+      document.getElementById('skipWrap').textContent = '';
+      document.getElementById('skipNow').style.display = 'inline-block';
+    }
+  }, 1000);
+}
+
+function resetSkipWrap() {
+  document.getElementById('skipWrap').innerHTML = 'Skip in <span id="cd">5</span>s ⏳';
+  document.getElementById('skipNow').style.display = 'none';
+}
+
+// ── Game-level ad triggers ────────────────────────────────────
+function onWatchAd() {
+  hideReviveOffer();
+  showRewardedAd(
+    () => revivePlayer(),       // reward granted → revive snake
+    () => {                     // ad closed without reward → death
+      if (state === 'ad') { state = 'dead'; }
+    }
+  );
+}
+
+function onSkipRevive() {
+  hideReviveOffer();
+  state = 'dead';
+  deathCount++;
+  if (deathCount % 3 === 0)
+    setTimeout(() => showInterstitialAd(() => {}), 400);
+}
+
+function revivePlayer() {
+  reviveUsed++;
+  bird.stuckTimer = 0;
+  invincible    = 180;
+  bird.vx       = 2.5;
+  bird.vy       = -2.5;
+  walls.forEach(w => w.passed = false);
+  scoreAnims = []; plusAnims = []; ripples = [];
+  state = 'playing';
+  const canvas = document.getElementById('c');
+  canvas.classList.add('reviving');
+  setTimeout(() => canvas.classList.remove('reviving'), 600);
+}
+
+// Regular interstitial every 3 deaths
+function showAd() {
+  deathCount++;
+  if (deathCount % 3 === 0)
+    setTimeout(() => showInterstitialAd(() => {}), 400);
+}
+
+window.closeAd = () => {};   // kept for safety
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  initAds();
+  document.getElementById('watchAdBtn').addEventListener('click', onWatchAd);
+  document.getElementById('reviveSkipBtn').addEventListener('click', onSkipRevive);
+});
+
+
+
+const WALL_COLORS = [
+  ['#ff6eb4','#ff9de2'],
+  ['#ffaa33','#ffdd88'],
+  ['#55ddaa','#aaffdd'],
+  ['#7799ff','#bbccff'],
+  ['#ff7755','#ffbb99'],
+];
+let wallColorIdx = 0;
+
+function drawWalls() {
+  walls.forEach((w, wi) => {
+    const gLeft  = w.gapX - GAP_W/2;
+    const gRight = w.gapX + GAP_W/2;
+    const wTop   = w.y - WALL_H/2;
+    const [c1, c2] = WALL_COLORS[w.colorIdx || 0];
+
+    // Shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.15)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 4;
+
+    // Left block
+    const lg = ctx.createLinearGradient(0, wTop, 0, wTop + WALL_H);
+    lg.addColorStop(0, c2); lg.addColorStop(1, c1);
+    ctx.fillStyle = lg;
+    roundRect(0, wTop, gLeft, WALL_H, 8);
+
+    // Right block
+    roundRect(gRight, wTop, W - gRight, WALL_H, 8);
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    // Shine stripe
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    roundRect(2, wTop+2, gLeft-4, WALL_H*0.35, 4);
+    roundRect(gRight+2, wTop+2, W-gRight-4, WALL_H*0.35, 4);
+
+    // Gap star reward emoji
+    ctx.font = '16px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⭐', w.gapX, w.y + 6);
+
+    // Moving indicator
+    if (w.moves) {
+      ctx.font = '11px serif';
+      ctx.fillText('↔️', w.gapX, w.y - 14);
+    }
+  });
+  ctx.textAlign = 'left';
+}
+
+function roundRect(x, y, w, h, r) {
+  if (w <= 0) return;
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawBird() {
+  const x = bird.x, y = bird.y;
+  const stuckRatio = Math.min(bird.stuckTimer / 60, 1);
+  const t = Date.now();
+
+  // ── Target line ─────────────────────────────────────────────
+  if (target.active && state === 'playing') {
+    const tdx = target.x - x, tdy = target.y - y;
+    const tdist = Math.sqrt(tdx*tdx + tdy*tdy);
+    const speedRatio = Math.min(tdist / 200, 1);
+    const rc = Math.floor(80 + 175 * speedRatio);
+    const gc = Math.floor(200 - 140 * speedRatio);
+    ctx.save();
+    ctx.strokeStyle = `rgba(${rc},${gc},60,0.75)`;
+    ctx.lineWidth = 1.5 + speedRatio * 3.5;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(target.x, target.y); ctx.stroke();
+    ctx.setLineDash([]);
+    const em = speedRatio > 0.65 ? '🔥' : speedRatio > 0.3 ? '⚡' : '🎯';
+    ctx.font = `${16 + Math.floor(speedRatio * 12)}px serif`;
+    ctx.textAlign = 'center'; ctx.globalAlpha = 0.92;
+    ctx.fillText(em, target.x, target.y + 8);
+    if (tdist > 50) {
+      ctx.font = '10px "Fredoka One"';
+      ctx.fillStyle = `rgb(${rc},${gc},60)`;
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(speedRatio > 0.65 ? 'FAST!' : speedRatio > 0.3 ? 'GO!' : 'SLOW', target.x, target.y - 14);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // ── 🦋 BUTTERFLY ────────────────────────────────────────────
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Rotate to face movement direction
+  let moveAngle = 0;
+  if (bird.trail.length > 1) {
+    const prev = bird.trail[bird.trail.length - 1];
+    moveAngle = Math.atan2(y - prev.y, x - prev.x);
+  }
+  ctx.rotate(moveAngle);
+
+  const R = bird.r;
+  const flutter = Math.sin(t * 0.018) * 0.85; // wing flap -1..1
+  const scared  = stuckRatio > 0.35;
+
+  // Wing colours — normal: purple/pink, scared: red/orange
+  const wingTopOuter  = scared ? '#ff4400' : '#cc44ff';
+  const wingTopInner  = scared ? '#ff8833' : '#ff88ff';
+  const wingBotOuter  = scared ? '#ff2200' : '#9922dd';
+  const wingBotInner  = scared ? '#ffaa55' : '#ffaaff';
+  const wingPattern   = scared ? 'rgba(255,255,200,0.7)' : 'rgba(255,255,255,0.6)';
+  const veinColor     = scared ? 'rgba(180,0,0,0.4)'     : 'rgba(80,0,120,0.35)';
+
+  // ── Upper wings ──────────────────────────────────────────────
+  const uw = R * 2.2;   // upper wing width
+  const uh = R * 1.8;   // upper wing height
+  const flapY = flutter * R * 0.9; // vertical flap offset
+
+  // RIGHT upper wing
+  ctx.save();
+  ctx.scale(1, flutter > 0 ? 1 - flutter * 0.3 : 1);
+  const rUWGrad = ctx.createRadialGradient(uw*0.4, -flapY*0.5, 2, uw*0.3, -uh*0.3, uw*0.9);
+  rUWGrad.addColorStop(0, wingTopInner);
+  rUWGrad.addColorStop(1, wingTopOuter);
+  ctx.fillStyle = rUWGrad;
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo( uw*0.2, -uh*0.1 + flapY, uw*1.1, -uh*0.6 + flapY, uw*0.9, -uh*1.1 + flapY);
+  ctx.bezierCurveTo( uw*0.7, -uh*1.5 + flapY,  uw*0.1, -uh*0.9 + flapY, 0, -R*0.3);
+  ctx.closePath();
+  ctx.fill();
+  // Wing outline
+  ctx.strokeStyle = wingTopOuter; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6; ctx.stroke();
+  ctx.restore();
+
+  // LEFT upper wing (mirror)
+  ctx.save();
+  ctx.scale(-1, flutter > 0 ? 1 - flutter * 0.3 : 1);
+  const lUWGrad = ctx.createRadialGradient(uw*0.4, -flapY*0.5, 2, uw*0.3, -uh*0.3, uw*0.9);
+  lUWGrad.addColorStop(0, wingTopInner);
+  lUWGrad.addColorStop(1, wingTopOuter);
+  ctx.fillStyle = lUWGrad;
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo( uw*0.2, -uh*0.1 + flapY, uw*1.1, -uh*0.6 + flapY, uw*0.9, -uh*1.1 + flapY);
+  ctx.bezierCurveTo( uw*0.7, -uh*1.5 + flapY,  uw*0.1, -uh*0.9 + flapY, 0, -R*0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = wingTopOuter; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6; ctx.stroke();
+  ctx.restore();
+
+  // ── Lower wings ──────────────────────────────────────────────
+  const lw = R * 1.7;
+  const lh = R * 1.4;
+  const flapY2 = flutter * R * 0.5;
+
+  // RIGHT lower wing
+  ctx.save();
+  ctx.scale(1, flutter > 0 ? 1 - flutter * 0.2 : 1);
+  const rLWGrad = ctx.createRadialGradient(lw*0.3, flapY2, 2, lw*0.4, lh*0.4, lw);
+  rLWGrad.addColorStop(0, wingBotInner);
+  rLWGrad.addColorStop(1, wingBotOuter);
+  ctx.fillStyle = rLWGrad;
+  ctx.globalAlpha = 0.88;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo( lw*0.3, R*0.2 + flapY2, lw*1.0, lh*0.5 + flapY2, lw*0.8, lh*1.1 + flapY2);
+  ctx.bezierCurveTo( lw*0.5, lh*1.4 + flapY2, lw*0.1, lh*0.8 + flapY2, 0, R*0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = wingBotOuter; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6; ctx.stroke();
+  ctx.restore();
+
+  // LEFT lower wing (mirror)
+  ctx.save();
+  ctx.scale(-1, flutter > 0 ? 1 - flutter * 0.2 : 1);
+  const lLWGrad = ctx.createRadialGradient(lw*0.3, flapY2, 2, lw*0.4, lh*0.4, lw);
+  lLWGrad.addColorStop(0, wingBotInner);
+  lLWGrad.addColorStop(1, wingBotOuter);
+  ctx.fillStyle = lLWGrad;
+  ctx.globalAlpha = 0.88;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo( lw*0.3, R*0.2 + flapY2, lw*1.0, lh*0.5 + flapY2, lw*0.8, lh*1.1 + flapY2);
+  ctx.bezierCurveTo( lw*0.5, lh*1.4 + flapY2, lw*0.1, lh*0.8 + flapY2, 0, R*0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = wingBotOuter; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6; ctx.stroke();
+  ctx.restore();
+
+  ctx.globalAlpha = 1;
+
+  // ── Wing patterns (spots & veins) ────────────────────────────
+  // Upper wing spots — right
+  ctx.fillStyle = wingPattern;
+  ctx.beginPath(); ctx.ellipse(uw*0.45, -uh*0.55 + flapY*0.5, R*0.28, R*0.22, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(uw*0.65, -uh*0.35 + flapY*0.3, R*0.16, R*0.13, 0.1, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(uw*0.25, -uh*0.75 + flapY*0.6, R*0.12, R*0.10, 0.5, 0, Math.PI*2); ctx.fill();
+  // Upper wing spots — left (mirror)
+  ctx.beginPath(); ctx.ellipse(-uw*0.45, -uh*0.55 + flapY*0.5, R*0.28, R*0.22, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-uw*0.65, -uh*0.35 + flapY*0.3, R*0.16, R*0.13, -0.1, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-uw*0.25, -uh*0.75 + flapY*0.6, R*0.12, R*0.10, -0.5, 0, Math.PI*2); ctx.fill();
+  // Lower wing spots
+  ctx.beginPath(); ctx.ellipse(lw*0.40, lh*0.50 + flapY2*0.4, R*0.22, R*0.18, 0.2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-lw*0.40, lh*0.50 + flapY2*0.4, R*0.22, R*0.18, -0.2, 0, Math.PI*2); ctx.fill();
+
+  // Wing veins
+  ctx.strokeStyle = veinColor; ctx.lineWidth = 1; ctx.globalAlpha = 0.7;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(uw*0.3, -uh*0.4, uw*0.7, -uh*0.9 + flapY*0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(uw*0.5, -uh*0.1, uw*0.8, -uh*0.3 + flapY*0.3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-uw*0.3, -uh*0.4, -uw*0.7, -uh*0.9 + flapY*0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-uw*0.5, -uh*0.1, -uw*0.8, -uh*0.3 + flapY*0.3); ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ── Body ─────────────────────────────────────────────────────
+  const bodyGrad = ctx.createLinearGradient(-R*0.2, -R*0.8, R*0.2, R*0.8);
+  if (scared) {
+    bodyGrad.addColorStop(0, '#ff6600');
+    bodyGrad.addColorStop(0.5, '#cc2200');
+    bodyGrad.addColorStop(1, '#ff4400');
+  } else {
+    bodyGrad.addColorStop(0, '#ffaaff');
+    bodyGrad.addColorStop(0.5, '#882299');
+    bodyGrad.addColorStop(1, '#cc44ff');
+  }
+  // Body segments (elongated ovals)
+  ctx.fillStyle = bodyGrad;
+  ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.ellipse(0, -R*0.55, R*0.28, R*0.42, 0, 0, Math.PI*2); ctx.fill(); // thorax
+  ctx.beginPath(); ctx.ellipse(0,  R*0.30, R*0.22, R*0.50, 0, 0, Math.PI*2); ctx.fill(); // abdomen top
+  ctx.beginPath(); ctx.ellipse(0,  R*0.85, R*0.16, R*0.38, 0, 0, Math.PI*2); ctx.fill(); // abdomen mid
+  ctx.shadowBlur = 0;
+  // Body outline
+  ctx.strokeStyle = scared ? '#881100' : '#550077';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(0, -R*0.55, R*0.28, R*0.42, 0, 0, Math.PI*2); ctx.stroke();
+
+  // Body stripe pattern
+  ctx.fillStyle = scared ? 'rgba(255,220,100,0.5)' : 'rgba(255,220,255,0.45)';
+  for (let s = 0; s < 3; s++) {
+    ctx.beginPath();
+    ctx.ellipse(0, R*0.15 + s*R*0.28, R*0.18, R*0.07, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // ── Head ─────────────────────────────────────────────────────
+  ctx.fillStyle = scared ? '#ff5500' : '#cc44ff';
+  ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 5;
+  ctx.beginPath(); ctx.arc(0, -R*0.95, R*0.32, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = scared ? '#881100' : '#660099';
+  ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Eyes — big cute round eyes
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(-R*0.14, -R*1.0, R*0.15, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc( R*0.14, -R*1.0, R*0.15, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = scared ? '#cc0000' : '#220044';
+  ctx.beginPath(); ctx.arc(-R*0.13, -R*1.0, R*0.08, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc( R*0.13, -R*1.0, R*0.08, 0, Math.PI*2); ctx.fill();
+  // Eye shine
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(-R*0.10, -R*1.04, R*0.04, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc( R*0.16, -R*1.04, R*0.04, 0, Math.PI*2); ctx.fill();
+
+  // Antennae — with cute little balls on tips
+  const antFlutter = Math.sin(t * 0.008) * 0.15;
+  ctx.strokeStyle = scared ? '#882200' : '#660099';
+  ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+  // Left antenna
+  ctx.beginPath();
+  ctx.moveTo(-R*0.12, -R*1.22);
+  ctx.quadraticCurveTo(-R*0.5 + antFlutter*R, -R*1.7, -R*0.35 + antFlutter*R*1.5, -R*2.0);
+  ctx.stroke();
+  // Right antenna
+  ctx.beginPath();
+  ctx.moveTo( R*0.12, -R*1.22);
+  ctx.quadraticCurveTo( R*0.5 - antFlutter*R, -R*1.7,  R*0.35 - antFlutter*R*1.5, -R*2.0);
+  ctx.stroke();
+  // Antenna tip balls
+  ctx.fillStyle = scared ? '#ff4400' : '#ff88ff';
+  ctx.beginPath(); ctx.arc(-R*0.35 + antFlutter*R*1.5, -R*2.0, R*0.1, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc( R*0.35 - antFlutter*R*1.5, -R*2.0, R*0.1, 0, Math.PI*2); ctx.fill();
+
+  // Smile (cute!)
+  if (!scared) {
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(0, -R*0.92, R*0.12, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else {
+    // Worried expression
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(0, -R*0.85, R*0.12, Math.PI + 0.3, -0.3);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Sweat drop when very scared
+  if (stuckRatio > 0.55) {
+    ctx.fillStyle = '#88ccff'; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(R*0.4, -R*0.85);
+    ctx.quadraticCurveTo(R*0.55, -R*0.6, R*0.4, -R*0.4);
+    ctx.quadraticCurveTo(R*0.25, -R*0.6, R*0.4, -R*0.85);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Sparkle trail behind butterfly
+  const trailLen = Math.min(bird.trail.length, 8);
+  for (let i = 0; i < trailLen; i++) {
+    const tp = bird.trail[bird.trail.length - 1 - i];
+    if (!tp) continue;
+    const alpha = (1 - i / trailLen) * 0.5;
+    const sparkR = R * 0.25 * (1 - i / trailLen);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = i % 2 === 0 ? '#ff88ff' : '#ffdd88';
+    // Draw relative to current position
+    const relX = tp.x - x;
+    const relY = tp.y - y;
+    ctx.beginPath(); ctx.arc(relX, relY, sparkR, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // ── Every-10-star butterfly glow ─────────────────────────────
+  if (butterflyGlow > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.025);
+    ctx.save();
+    ctx.globalAlpha = Math.min(butterflyGlow, 1) * (0.55 + 0.35 * pulse);
+    const glowColor = butterflyGlow > 1.2 ? '#FFD700' : '#ff88ff'; // gold for 50, pink for 10
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 30 + pulse * 20;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth   = 3 + pulse * 3;
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.r * 2.0 + pulse * 6, 0, Math.PI*2);
+    ctx.stroke();
+    // Sparkle ring around wings
+    const sparkCount = 8;
+    for (let si = 0; si < sparkCount; si++) {
+      const sa = (Date.now() * 0.003) + (Math.PI * 2 * si / sparkCount);
+      const sr = bird.r * 2.3 + pulse * 4;
+      ctx.fillStyle = si % 2 === 0 ? '#FFD700' : '#ff88ff';
+      ctx.globalAlpha = Math.min(butterflyGlow, 1) * (0.6 + 0.4 * Math.sin(sa * 3));
+      ctx.beginPath();
+      ctx.arc(bird.x + Math.cos(sa) * sr, bird.y + Math.sin(sa) * sr, 3 + pulse * 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+    butterflyGlow = Math.max(0, butterflyGlow - 0.012); // fade over ~2 secs
+  }
+
+  // ── Invincibility shield (50-star immune) ────────────────────
+  if (invincible > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
+    const shieldAlpha = Math.min(invincible / 120, 1) * (0.4 + 0.4 * pulse);
+    ctx.save();
+    ctx.globalAlpha = shieldAlpha;
+    // Gold outer glow ring for immunity
+    ctx.strokeStyle = '#FFD700';
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur  = 24;
+    ctx.lineWidth   = 4 + pulse * 3;
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.r * 2.0 + pulse * 5, 0, Math.PI*2);
+    ctx.stroke();
+    // Inner gold tint
+    const shGrad = ctx.createRadialGradient(bird.x, bird.y, bird.r, bird.x, bird.y, bird.r*2.0);
+    shGrad.addColorStop(0, 'rgba(255,215,0,0.18)');
+    shGrad.addColorStop(1, 'rgba(255,180,0,0)');
+    ctx.fillStyle = shGrad;
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, bird.r*2.0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Milestone text ────────────────────────────────────────────
+  if (milestoneTimer > 0) {
+    const fadeIn  = Math.min(milestoneTimer, 20) / 20;
+    const fadeOut = Math.min(milestoneTimer, 30) / 30;
+    const alpha   = milestoneTimer > 110 ? fadeIn : fadeOut;
+    const rise    = (140 - milestoneTimer) * 0.4;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 22px "Fredoka One"';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#ff88ff';
+    ctx.shadowBlur  = 14;
+    ctx.fillStyle   = milestoneTimer > 80 ? '#FFD700' : '#ff88ff';
+    ctx.fillText(milestoneFlash, W/2, H/2 - 60 - rise);
+    ctx.restore();
+    milestoneTimer--;
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function spawnBurst(x, y, count, colors) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 2 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 4 + Math.random() * 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 1
+    });
+  }
+}
+
+function drawParticles() {
+  particles.forEach((p, i) => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life -= 0.035;
+    if (p.life <= 0) { particles.splice(i,1); return; }
+    ctx.globalAlpha = p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ── SCORE ANIMATIONS ──────────────────────────────────────────
+let scoreAnims  = [];   // stars flying toward badge
+let scorePop    = 0;    // badge scale pop
+let badgeGlow   = 0;    // badge glow intensity
+let displayScore = 0;   // shown score (animates up toward real score)
+let butterflyGlow = 0;  // glow intensity at every 10 stars (0..1)
+let milestoneFlash = ''; // text shown on milestone
+let milestoneTimer = 0;  // frames to show milestone text
+let plusAnims   = [];   // "+1" labels that float up
+let ripples     = [];   // ring burst at gap
+
+function triggerScoreAnim(wx, wy) {
+  // Flying stars toward badge
+  const count = 5 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < count; i++) {
+    scoreAnims.push({
+      x: wx + (Math.random()-0.5)*40,
+      y: wy + (Math.random()-0.5)*30,
+      tx: W/2, ty: 27,
+      progress: 0,
+      delay: i * 0.07,
+      size: 10 + Math.random() * 8,
+      spin: (Math.random()-0.5) * 0.3,
+      angle: 0,
+      done: false,
+    });
+  }
+  // "+1" popup at gap
+  plusAnims.push({ x: wx, y: wy - 10, life: 1.0 });
+  // Ripple ring at gap
+  ripples.push({ x: wx, y: wy, r: 10, life: 1.0 });
+  scorePop  = 1;
+  badgeGlow = 1;
+}
+
+function drawHUD() {
+  // ── Ripple rings at gap ────────────────────────────────────
+  ripples.forEach((rp, i) => {
+    rp.r   += 4;
+    rp.life -= 0.055;
+    if (rp.life <= 0) { ripples.splice(i, 1); return; }
+    ctx.save();
+    ctx.globalAlpha = rp.life * 0.6;
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+
+  // ── +1 float-up labels ─────────────────────────────────────
+  plusAnims.forEach((p, i) => {
+    p.y   -= 1.5;
+    p.life -= 0.032;
+    if (p.life <= 0) { plusAnims.splice(i, 1); return; }
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, p.life * 2);
+    ctx.font = `bold ${18 + Math.floor((1-p.life)*6)}px "Fredoka One"`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = '#ff8800';
+    ctx.shadowBlur = 10;
+    ctx.fillText('+1 ⭐', p.x, p.y);
+    ctx.restore();
+  });
+
+  // ── Animate flying stars ──────────────────────────────────
+  for (let i = scoreAnims.length - 1; i >= 0; i--) {
+    const s = scoreAnims[i];
+    if (s.done) { scoreAnims.splice(i, 1); continue; }
+    s.delay -= 0.016;
+    if (s.delay > 0) continue;
+
+    s.progress = Math.min(s.progress + 0.055, 1);
+    const ease = s.progress < 0.5
+      ? 2 * s.progress * s.progress
+      : 1 - Math.pow(-2 * s.progress + 2, 2) / 2;
+    const cx = s.x + (s.tx - s.x) * ease;
+    const cy = s.y + (s.ty - s.y) * ease;
+    s.angle += s.spin;
+
+    const alpha = s.progress > 0.85 ? (1 - s.progress) / 0.15 : 1;
+    const sz = s.size * (1 - s.progress * 0.4);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(s.angle);
+    ctx.beginPath();
+    for (let p = 0; p < 5; p++) {
+      const outerA = (Math.PI*2/5)*p - Math.PI/2;
+      const innerA = outerA + Math.PI/5;
+      if (p===0) ctx.moveTo(Math.cos(outerA)*sz, Math.sin(outerA)*sz);
+      else       ctx.lineTo(Math.cos(outerA)*sz, Math.sin(outerA)*sz);
+      ctx.lineTo(Math.cos(innerA)*sz*0.42, Math.sin(innerA)*sz*0.42);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = '#ffaa00';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.strokeStyle = '#FFA500';
+    ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+
+    if (s.progress >= 1) s.done = true;
+  }
+
+  // ── Count display score toward real score ─────────────────
+  if (displayScore < score) {
+    displayScore = Math.min(score, displayScore + 1);
+  }
+
+  // ── Score badge ────────────────────────────────────────────
+  scorePop  = Math.max(0, scorePop  - 0.05);
+  badgeGlow = Math.max(0, badgeGlow - 0.028);
+  const popScale = 1 + scorePop * 0.28;
+
+  ctx.save();
+  ctx.translate(W/2, 27);
+  ctx.scale(popScale, popScale);
+
+  // Outer glow
+  if (badgeGlow > 0) {
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur  = 30 * badgeGlow;
+  }
+
+  // Badge background
+  ctx.fillStyle = badgeGlow > 0.05
+    ? `rgba(255,248,200,${0.92 + badgeGlow*0.08})`
+    : 'rgba(255,255,255,0.90)';
+  ctx.beginPath();
+  ctx.roundRect(-52, -20, 104, 42, 21);
+  ctx.fill();
+
+  // Badge border
+  ctx.strokeStyle = badgeGlow > 0.05
+    ? `rgba(255,${Math.floor(160 + badgeGlow*95)},0,${0.55+badgeGlow*0.45})`
+    : '#ff85c0';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Spinning star icon in badge when glowing
+  if (badgeGlow > 0.05) {
+    const starSpin = Date.now() * 0.006;
+    ctx.save();
+    ctx.translate(-28, 0);
+    ctx.rotate(starSpin);
+    ctx.globalAlpha = 0.5 + badgeGlow * 0.5;
+    ctx.fillStyle = '#FFD700';
+    ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    for (let p = 0; p < 5; p++) {
+      const oa = (Math.PI*2/5)*p - Math.PI/2;
+      const ia = oa + Math.PI/5;
+      if (p===0) ctx.moveTo(Math.cos(oa)*9, Math.sin(oa)*9);
+      else       ctx.lineTo(Math.cos(oa)*9, Math.sin(oa)*9);
+      ctx.lineTo(Math.cos(ia)*4, Math.sin(ia)*4);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // Score number — bounces on new score
+  ctx.font = `${24 + Math.floor(scorePop*6)}px "Fredoka One"`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = badgeGlow > 0.05 ? '#cc6600' : '#ff55aa';
+  ctx.shadowColor = badgeGlow > 0.05 ? '#ffaa00' : 'transparent';
+  ctx.shadowBlur  = badgeGlow > 0.05 ? 6 : 0;
+  ctx.fillText('⭐ ' + displayScore, 8, 14);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // ── Stuck danger bar ───────────────────────────────────────
+  if (bird.stuckTimer > 10) {
+    const ratio = Math.min(bird.stuckTimer / 60, 1);
+    const barW  = (W - 60) * ratio;
+    const barY  = H - 65;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.beginPath(); ctx.roundRect(28, barY, W-56, 14, 7); ctx.fill();
+    const barGrad = ctx.createLinearGradient(28, 0, 28+barW, 0);
+    barGrad.addColorStop(0, '#ffdd55');
+    barGrad.addColorStop(1, '#ff5566');
+    ctx.fillStyle = barGrad;
+    ctx.beginPath(); ctx.roundRect(28, barY, barW, 14, 7); ctx.fill();
+    if (ratio > 0.5 && Math.floor(Date.now()/400)%2===0) {
+      ctx.font = '11px "Fredoka One"';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#cc2244';
+      ctx.fillText('😱 Move quickly! 😱', W/2, barY - 5);
+      ctx.textAlign = 'left';
+    }
+  }
+}
+
+function drawStartScreen() {
+  // Card
+  ctx.fillStyle = 'rgba(255,255,255,0.93)';
+  ctx.beginPath(); ctx.roundRect(30, H/2-145, W-60, 285, 28); ctx.fill();
+  ctx.strokeStyle = '#ff85c0';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Title
+  ctx.textAlign = 'center';
+  ctx.font = '38px "Fredoka One"';
+  ctx.fillStyle = '#ff55aa';
+  ctx.shadowColor = '#ffaad4';
+  ctx.shadowBlur = 8;
+  ctx.fillText('🌈 BOUNCE', W/2, H/2-85);
+  ctx.fillText('BUDDY! 🐾', W/2, H/2-48);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '13px "Nunito"';
+  ctx.fillStyle = '#aa66aa';
+  ctx.fillText('Hold & drag to guide your buddy!', W/2, H/2+5);
+  ctx.fillText('Dodge the candy walls 🍭', W/2, H/2+28);
+
+  const blink = Math.floor(Date.now()/500)%2===0;
+  if (blink) {
+    ctx.font = '16px "Fredoka One"';
+    ctx.fillStyle = '#ff88cc';
+    ctx.fillText('👆 TAP TO START! 👆', W/2, H/2+80);
+  }
+  if (highScore > 0) {
+    ctx.font = '13px "Fredoka One"';
+    ctx.fillStyle = '#ffaa33';
+    ctx.fillText('🏆 Best: ' + highScore + ' stars!', W/2, H/2+112);
+  }
+  ctx.textAlign = 'left';
+}
+
+function drawDeadScreen() {
+  ctx.fillStyle = 'rgba(255,255,255,0.93)';
+  ctx.beginPath(); ctx.roundRect(30, H/2-145, W-60, 295, 28); ctx.fill();
+  ctx.strokeStyle = '#ffaa55';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.font = '30px "Fredoka One"';
+  ctx.fillStyle = '#ff7733';
+  ctx.shadowColor = '#ffccaa';
+  ctx.shadowBlur = 8;
+  ctx.fillText('😢 Oops!', W/2, H/2-90);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '13px "Nunito"';
+  ctx.fillStyle = '#aa6633';
+  ctx.fillText('Your buddy got stuck! 🐾', W/2, H/2-55);
+
+  ctx.font = '18px "Fredoka One"';
+  ctx.fillStyle = '#ff55aa';
+  ctx.fillText('⭐ Score: ' + score, W/2, H/2-15);
+  ctx.fillStyle = '#ffaa33';
+  ctx.fillText('🏆 Best: ' + highScore, W/2, H/2+18);
+
+  ctx.font = '12px "Nunito"';
+  ctx.fillStyle = '#aaaacc';
+  ctx.fillText('Hold & drag to guide the ball', W/2, H/2+55);
+  ctx.fillText('Bounce off walls — avoid getting stuck!', W/2, H/2+75);
+
+  const blink = Math.floor(Date.now()/500)%2===0;
+  if (blink) {
+    ctx.font = '16px "Fredoka One"';
+    ctx.fillStyle = '#ff88cc';
+    ctx.fillText('👆 TAP TO TRY AGAIN! 👆', W/2, H/2+112);
+  }
+  ctx.textAlign = 'left';
+}
+
+// ── COLLISION: resolve ball vs solid rectangle ─────────────────
+// Uses previous position to determine which face was hit
+function resolveRect(px, py, x1, y1, x2, y2) {
+  // px/py = ball centre BEFORE move, bird.x/y = AFTER move
+  const br = bird.r;
+  // Expanded rect by radius
+  const ex1 = x1 - br, ex2 = x2 + br;
+  const ey1 = y1 - br, ey2 = y2 + br;
+
+  // Is ball inside expanded rect now?
+  if (bird.x < ex1 || bird.x > ex2 || bird.y < ey1 || bird.y > ey2) return false;
+
+  // Was ball outside before? (entry direction)
+  const fromLeft   = px <= ex1;
+  const fromRight  = px >= ex2;
+  const fromTop    = py <= ey1;
+  const fromBottom = py >= ey2;
+
+  // Resolve based on entry side (prev pos tells us which face we crossed)
+  if (fromLeft)   { bird.x = ex1 - 1; bird.vx = -Math.abs(bird.vx); }
+  else if (fromRight)  { bird.x = ex2 + 1; bird.vx =  Math.abs(bird.vx); }
+  else if (fromTop)    { bird.y = ey1 - 1; bird.vy = -Math.abs(bird.vy); }
+  else if (fromBottom) { bird.y = ey2 + 1; bird.vy =  Math.abs(bird.vy); }
+  else {
+    // Ball started inside (edge case) — push out by smallest overlap
+    const ol = bird.x - ex1, or_ = ex2 - bird.x;
+    const ot = bird.y - ey1, ob  = ey2 - bird.y;
+    const m = Math.min(ol, or_, ot, ob);
+    if      (m === ol)  { bird.x = ex1 - 1; bird.vx = -Math.abs(bird.vx); }
+    else if (m === or_) { bird.x = ex2 + 1; bird.vx =  Math.abs(bird.vx); }
+    else if (m === ot)  { bird.y = ey1 - 1; bird.vy = -Math.abs(bird.vy); }
+    else                { bird.y = ey2 + 1; bird.vy =  Math.abs(bird.vy); }
+  }
+  return true;
+}
+
+// ── UPDATE ────────────────────────────────────────────────────
+function update() {
+  if (state !== 'playing') return;
+
+  // ── Move walls first ────────────────────────────────────────
+  wallTimer++;
+  if (wallTimer >= WALL_INTERVAL) { wallTimer = 0; spawnWall(); }
+
+  walls.forEach((w, i) => {
+    w.y += w.vy;
+    if (w.moves) {
+      w.gapX += w.moveSpeed;
+      if (w.gapX - GAP_W/2 < 10)    { w.gapX = GAP_W/2 + 10;    w.moveSpeed *= -1; }
+      if (w.gapX + GAP_W/2 > W - 10) { w.gapX = W - GAP_W/2 - 10; w.moveSpeed *= -1; }
+    }
+    if (w.y > H + 40 || w.y < -40) walls.splice(i, 1);
+  });
+
+  // ── Steer ball toward touch/click target (distance = speed) ──
+  if (target.active) {
+    const dx = target.x - bird.x;
+    const dy = target.y - bird.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 6) {
+      const speed = Math.min(MAX_SPEED, Math.max(MIN_SPEED, dist * SPEED_SCALE));
+      bird.vx = (dx / dist) * speed;
+      bird.vy = (dy / dist) * speed;
+    } else {
+      bird.vx = 0;
+      bird.vy = 0;
+    }
+  }
+
+  // ── Move ball in SUBSTEPS for reliable collision ─────────────
+  const STEPS = 8;
+  const svx = bird.vx / STEPS;
+  const svy = bird.vy / STEPS;
+
+  for (let s = 0; s < STEPS; s++) {
+    const px = bird.x, py = bird.y;
+    bird.x += svx;
+    bird.y += svy;
+
+    // Screen edges
+    if (bird.x - bird.r <= 0) { bird.x = bird.r;     bird.vx =  Math.abs(bird.vx); }
+    if (bird.x + bird.r >= W) { bird.x = W - bird.r; bird.vx = -Math.abs(bird.vx); }
+    if (bird.y - bird.r <= 0) { bird.y = bird.r;     bird.vy =  Math.abs(bird.vy); }
+    if (bird.y + bird.r >= H) { bird.y = H - bird.r; bird.vy = -Math.abs(bird.vy); }
+
+    // Wall collision per substep
+    walls.forEach(w => {
+      const gLeft  = w.gapX - GAP_W / 2;
+      const gRight = w.gapX + GAP_W / 2;
+      const wTop    = w.y - WALL_H / 2;
+      const wBottom = w.y + WALL_H / 2;
+
+      // Two solid blocks: [0..gLeft] and [gRight..W]
+      const hitL = resolveRect(px, py, 0,      wTop, gLeft,  wBottom);
+      const hitR = resolveRect(px, py, gRight, wTop, W,      wBottom);
+
+      if (hitL || hitR) {
+        if (invincible > 0) {
+          burst(bird.x, bird.y, '#88eeff'); // shield deflect
+        } else {
+          burst(bird.x, bird.y, '#ffddaa');
+          bird.stuckTimer++;
+        }
+      }
+
+      // Score: ball passed cleanly through gap
+      if (!w.passed) {
+        const crossed = (w.vy > 0 && w.y >= bird.y) || (w.vy < 0 && w.y <= bird.y);
+        if (crossed) {
+          w.passed = true;
+          if (bird.x > gLeft && bird.x < gRight) {
+            score++;
+            triggerScoreAnim(w.gapX, w.y);
+            // ── Milestone effects ──────────────────────────────
+            if (score % 50 === 0) {
+              // Every 50 stars: 2s immunity (120 frames)
+              invincible = Math.max(invincible, 120);
+              butterflyGlow = 2.0; // extra bright gold glow
+              milestoneFlash = '🦋 IMMUNE! 2 secs! ⭐×' + score;
+              milestoneTimer = 140;
+              spawnBurst(bird.x, bird.y, 20, ['#FFD700','#ff88ff','#ffffff','#00eeff']);
+            } else if (score % 10 === 0) {
+              // Every 10 stars: butterfly glows
+              butterflyGlow = 1.0;
+              milestoneFlash = '✨ ×' + score + ' GLOW! ✨';
+              milestoneTimer = 90;
+              spawnBurst(bird.x, bird.y, 10, ['#ff88ff','#cc44ff','#FFD700']);
+            }
+          }
+        }
+      }
+    });
+
+    // Recalc per-substep velocity direction after possible bounce
+    // (keep speed magnitude, use updated signs)
+  }
+
+  // Trail
+  bird.trail.push({x: bird.x, y: bird.y});
+  if (bird.trail.length > 40) bird.trail.shift();
+
+  // ── STUCK = bouncing rapidly against walls = lose ─────────────
+  // Invincibility after revive
+  if (invincible > 0) {
+    invincible--;
+    bird.stuckTimer = 0;
+  }
+  if (bird.stuckTimer > 60) die();
+  bird.stuckTimer = Math.max(0, bird.stuckTimer - 0.4);
+}
+
+// ════════════════════════════════════════════════════════════════
+// 🔊 SOUND ENGINE  (Web Audio API — zero external files)
+// ════════════════════════════════════════════════════════════════
+let _ac = null;
+function getAC() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state === 'suspended') _ac.resume();
+  return _ac;
+}
+
+// ── Core helpers ──────────────────────────────────────────────
+function playTone({ freq=440, freq2=null, type='sine', vol=0.4,
+                    attack=0.01, decay=0.1, sustain=0.3, release=0.2,
+                    start=0, duration=null } = {}) {
+  const ac  = getAC();
+  const now = ac.currentTime + start;
+  const dur = duration ?? (attack + decay + sustain + release);
+
+  const osc  = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (freq2) osc.frequency.exponentialRampToValueAtTime(freq2, now + dur);
+
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(vol, now + attack);
+  gain.gain.setValueAtTime(vol, now + attack + decay);
+  gain.gain.linearRampToValueAtTime(vol * sustain, now + attack + decay);
+  gain.gain.linearRampToValueAtTime(0, now + dur);
+
+  osc.start(now);
+  osc.stop(now + dur + 0.05);
+}
+
+function playNoise({ vol=0.3, freq=800, q=1, start=0, duration=0.15 } = {}) {
+  const ac   = getAC();
+  const now  = ac.currentTime + start;
+  const buf  = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+
+  const src    = ac.createBufferSource();
+  const filter = ac.createBiquadFilter();
+  const gain   = ac.createGain();
+  src.buffer = buf;
+  filter.type = 'bandpass'; filter.frequency.value = freq; filter.Q.value = q;
+  src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.linearRampToValueAtTime(0, now + duration);
+  src.start(now);
+}
+
+// ── 🌟 STAR / SCORE SOUND — magical sparkle ───────────────────
+function soundStar() {
+  // Rising arpeggio + shimmer
+  const notes = [523, 659, 784, 1047, 1319]; // C5 E5 G5 C6 E6
+  notes.forEach((f, i) => {
+    playTone({ freq: f, freq2: f * 1.5, type: 'sine',
+               vol: 0.22 - i * 0.02, attack: 0.01, decay: 0.05,
+               sustain: 0.6, release: 0.15, start: i * 0.07, duration: 0.35 });
+  });
+  // Fairy shimmer on top
+  [1800, 2200, 2600].forEach((f, i) => {
+    playTone({ freq: f, freq2: f * 0.8, type: 'sine',
+               vol: 0.08, attack: 0.01, decay: 0.01,
+               sustain: 0.1, release: 0.1, start: i * 0.05 + 0.1, duration: 0.2 });
+  });
+  // Tiny noise sparkle
+  playNoise({ vol: 0.15, freq: 3000, q: 2, duration: 0.12 });
+}
+
+// ── 💥 WALL BOUNCE SOUND ──────────────────────────────────────
+function soundBounce() {
+  playTone({ freq: 180, freq2: 80, type: 'square',
+             vol: 0.18, attack: 0.001, decay: 0.0, sustain: 0.0,
+             release: 0.08, duration: 0.09 });
+  playNoise({ vol: 0.12, freq: 400, q: 0.8, duration: 0.06 });
+}
+
+// ── 💀 DEATH SOUND ────────────────────────────────────────────
+function soundDie() {
+  // Sad descending tones
+  [400, 320, 240, 160].forEach((f, i) => {
+    playTone({ freq: f, freq2: f * 0.7, type: 'sawtooth',
+               vol: 0.2, attack: 0.01, decay: 0.0, sustain: 0.5,
+               release: 0.2, start: i * 0.1, duration: 0.35 });
+  });
+  playNoise({ vol: 0.25, freq: 200, q: 0.5, start: 0, duration: 0.3 });
+}
+
+// ── ✨ REVIVE SOUND — triumphant whoosh ───────────────────────
+function soundRevive() {
+  // Power-up sweep
+  playTone({ freq: 300, freq2: 1200, type: 'sine',
+             vol: 0.3, attack: 0.02, decay: 0.0, sustain: 0.8,
+             release: 0.2, duration: 0.5 });
+  // Chord stab
+  [523, 659, 784].forEach((f, i) => {
+    playTone({ freq: f, type: 'sine', vol: 0.15,
+               attack: 0.01, decay: 0.0, sustain: 0.6,
+               release: 0.3, start: 0.4 + i * 0.05, duration: 0.5 });
+  });
+}
+
+// ── 🎮 START JINGLE ───────────────────────────────────────────
+function soundStart() {
+  [392, 523, 659, 784].forEach((f, i) => {
+    playTone({ freq: f, type: 'sine', vol: 0.18,
+               attack: 0.01, decay: 0.02, sustain: 0.5,
+               release: 0.15, start: i * 0.1, duration: 0.3 });
+  });
+}
+
+// ── 🎵 BACKGROUND MUSIC — gentle looping melody ───────────────
+let _bgNodes = [];
+let _bgPlaying = false;
+
+function startBgMusic() {
+  if (_bgPlaying) return;
+  _bgPlaying = true;
+  scheduleBgLoop();
+}
+
+function stopBgMusic() {
+  _bgPlaying = false;
+  _bgNodes.forEach(n => { try { n.stop(); } catch(e){} });
+  _bgNodes = [];
+}
+
+// Cheerful pentatonic melody pattern
+const BG_MELODY = [
+  // [freq, duration, volume]
+  [523, 0.25, 0.12],  // C5
+  [659, 0.25, 0.10],  // E5
+  [784, 0.25, 0.11],  // G5
+  [659, 0.25, 0.09],  // E5
+  [523, 0.25, 0.12],  // C5
+  [392, 0.25, 0.10],  // G4
+  [440, 0.50, 0.11],  // A4 (held)
+  [523, 0.25, 0.10],  // C5
+  [587, 0.25, 0.10],  // D5
+  [659, 0.25, 0.11],  // E5
+  [784, 0.25, 0.12],  // G5
+  [880, 0.50, 0.10],  // A5 (held)
+  [784, 0.25, 0.09],  // G5
+  [659, 0.25, 0.10],  // E5
+  [523, 0.50, 0.11],  // C5 (held)
+  [392, 0.50, 0.09],  // G4 (held)
+];
+
+// Bass line
+const BG_BASS = [
+  [130, 1.0, 0.08],  // C2
+  [130, 1.0, 0.07],  // C2
+  [98,  1.0, 0.07],  // G1
+  [110, 1.0, 0.07],  // A1
+];
+
+function scheduleBgLoop() {
+  if (!_bgPlaying) return;
+  const ac  = getAC();
+  const now = ac.currentTime;
+  let t = now;
+
+  // Play melody
+  BG_MELODY.forEach(([freq, dur, vol]) => {
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    // Add slight vibrato
+    const lfo  = ac.createOscillator();
+    const lfoG = ac.createGain();
+    lfo.frequency.value  = 5;
+    lfoG.gain.value      = 3;
+    lfo.connect(lfoG);
+    lfoG.connect(osc.frequency);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+    gain.gain.linearRampToValueAtTime(0, t + dur - 0.02);
+    osc.connect(gain); gain.connect(ac.destination);
+    lfo.start(t); osc.start(t); osc.stop(t + dur);
+    lfo.stop(t + dur);
+    _bgNodes.push(osc, lfo);
+    t += dur;
+  });
+
+  const loopDur = t - now;
+
+  // Play bass
+  let bt = now;
+  BG_BASS.forEach(([freq, dur, vol]) => {
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, bt);
+    gain.gain.setValueAtTime(0, bt);
+    gain.gain.linearRampToValueAtTime(vol, bt + 0.05);
+    gain.gain.linearRampToValueAtTime(0, bt + dur - 0.05);
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(bt); osc.stop(bt + dur);
+    _bgNodes.push(osc);
+    bt += dur;
+  });
+
+  // Schedule next loop
+  setTimeout(scheduleBgLoop, (loopDur - 0.1) * 1000);
+}
+
+// ── Hook sounds into game events ──────────────────────────────
+// Patch startGame
+const _origStartGame = startGame;
+window.startGame = function() {
+  _origStartGame();
+  soundStart();
+  setTimeout(startBgMusic, 300);
+};
+
+// Patch die
+const _origDie = die;
+window.die = function() {
+  soundDie();
+  stopBgMusic();
+  _origDie();
+};
+
+// Patch revivePlayer
+const _origRevive = revivePlayer;
+window.revivePlayer = function() {
+  soundRevive();
+  setTimeout(startBgMusic, 600);
+  _origRevive();
+};
+
+// Patch triggerScoreAnim to add star sound
+const _origScoreAnim = triggerScoreAnim;
+window.triggerScoreAnim = function(x, y) {
+  soundStar();
+  _origScoreAnim(x, y);
+};
+
+// Patch wall bounce — hook into bird stuckTimer increment
+const _origUpdate = update;
+let _lastStuck = 0;
+window.update = function() {
+  _origUpdate();
+  if (bird.stuckTimer > _lastStuck + 1 && state === 'playing')
+    soundBounce();
+  _lastStuck = bird.stuckTimer;
+};
+
+// Start music on very first tap (browser needs user gesture)
+let _audioStarted = false;
+document.addEventListener('pointerdown', () => {
+  if (!_audioStarted) {
+    _audioStarted = true;
+    getAC(); // unlock AudioContext on first touch
+  }
+}, { once: false });
+
+// ── LOOP ──────────────────────────────────────────────────────
+function loop() {
+  update();
+  drawBg();
+  drawWalls();
+  drawParticles();
+  drawBird();
+  if (state === 'playing') drawHUD();
+  if (state === 'start') { drawHUD(); drawStartScreen(); }
+  if (state === 'dead')  { drawHUD(); drawDeadScreen(); }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
